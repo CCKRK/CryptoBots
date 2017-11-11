@@ -1,0 +1,9 @@
+import re
+from pandas_datareader.base import _DailyBaseReader
+class GdaxReader(_DailyBaseReader):
+    _BASE_URL="https://api.gdax.com/products/"
+@property
+def url(self):
+    symbol = self.symbols if isinstance(self.symbols,str) \
+                            else self.symbols[0]
+    

@@ -1,4 +1,3 @@
-
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import division
@@ -12,12 +11,8 @@ from talib.abstract import *
 import pinkfish as pf
 
 # format price data
-pd.options.display.float_format = '{:0.2f}'.format
-
-# Double the DPI, so we are making 2x plots:
-matplotlib.rcParams['savefig.dpi'] = 2 * matplotlib.rcParams['savefig.dpi']
-
-symbol = '^GSPC'
+pd.options.display.float_format = '{:0.2f}.'format
+symbol='BTC-USD'
 #symbol = 'SPY'
 #symbol = 'DIA'
 #symbol = 'QQQ'
@@ -29,8 +24,149 @@ symbol = '^GSPC'
 capital = 10000
 start = datetime.datetime(2000, 1, 1)
 end = datetime.datetime(2015, 5, 1)
+
 ts = pf.fetch_timeseries(symbol)
 ts.head()
+
+
+from __future__ import (absolute_import, division, print_function)
+import gdax
+import datetime
+import argparse
+import pandas as pd
+
+now = datetime.datetime.now()
+client = gdax.PublicClient()
+# hack you suck
+def five():
+    return '5min'
+def fifteen():
+    return '15min'
+def hour():
+    return 'hour'
+def day():
+    return 'day'
+def week():
+    return 'week'
+options = {300: five,
+           900: fifteen,
+           3600: hour,
+           86400: day,
+           2678400: week}
+import requests
+
+
+class PublicClient(object):
+    """GDAX public client API.
+
+    All requests default to the `product_id` specified at object
+    creation if not otherwise specified.
+
+    Attributes:
+        url (Optional[str]): API URL. Defaults to GDAX API.
+
+    """
+
+    def __init__(self, api_url='https://api.gdax.com'):
+        """Create GDAX API public client.
+
+        Args:
+            api_url (Optional[str]): API URL. Defaults to GDAX API.
+
+        """
+        self.url = api_url.rstrip('/')
+
+    def get_product_historic_rates(self, product_id, start=None, end=None,
+                                   granularity=None):
+        """Historic rates for a product.
+
+        Rates are returned in grouped buckets based on requested
+        `granularity`. If start, end, and granularity aren't provided,
+        the exchange will assume some (currently unknown) default values.
+
+        Historical rate data may be incomplete. No data is published for
+        intervals where there are no ticks.
+
+        **Caution**: Historical rates should not be polled frequently.
+        If you need real-time information, use the trade and book
+        endpoints along with the websocket feed.
+
+        The maximum number of data points for a single request is 200
+        candles. If your selection of start/end time and granularity
+        will result in more than 200 data points, your request will be
+        rejected. If you wish to retrieve fine granularity data over a
+        larger time range, you will need to make multiple requests with
+        new start/end ranges.
+
+        Args:
+            product_id (str): Product
+            start (Optional[str]): Start time in ISO 8601
+            end (Optional[str]): End time in ISO 8601
+            granularity (Optional[str]): Desired time slice in seconds
+
+        Returns:
+            list: Historic candle data. Example::
+                [
+                    [ time, low, high, open, close, volume ],
+                    [ 1415398768, 0.32, 4.2, 0.35, 4.2, 12.3 ],
+                    ...
+                ]
+
+        """
+        params = {}
+        if start is not None:
+            params['start'] = start
+        if end is not None:
+            params['end'] = end
+        if granularity is not None:
+            params['granularity'] = granularity
+        r = requests.get(self.url + '/products/{}/candles'
+                         .format(product_id), params=params)
+        # r.raise_for_status()
+        return r.json()
+
+def fetch_timeseries(symbol,dir_name='data',use_cache=True):
+    args = parse_args()
+    instrument = str(args.instrument)
+    fromdate = str(args.fromdate)
+    todate = str(args.todate)
+    gran = int(args.seconds)
+    candlesize = options[gran]
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name):
+    timeseries_cache = os.path.join(dir_name, symbol+'csv')
+    if os.path.isfile(timeseries_cache) and use_cache:
+        pass
+        else:
+            data0 = client.get_product_historic_rates(symbol,start=fromdate,end=todate,granularity=86400)
+            ts = pd.read_json(data0,typ='series',orient='records')
+            ts.to_csv(timeseries_cache,encoding='utf-8')
+    ts = pd.read_csv(timeseries_cache,index_col='Date',parse_dates=True)
+    ts=_adj_column_names(ts)
+    return(ts)
+    # labels = ['Time','Low','High','Open','Close','Volume']
+    frame = pd.DataFrame(data=data0, columns=['Time','Low','High','Open','Close','Volume'])
+    
+    frame['Time'] = pd.to_datetime(frame['Time'], unit='s')
+    frame = frame.sort_values(by=['Time'])
+    filename = str(args.instrument) + '_' + str(args.fromdate)+'_'+candlesize()
+    frame = frame.set_index('Time')
+    frame.to_csv(filename +'.csv')
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description='Collect Sample Data')
+    parser.add_argument('--fromdate', '-f', default='2014-01-01',
+                        help=("Starting date in YYYY-MM-DD"))
+    parser.add_argument('--todate', '-t', required=False, default=(str(now.year) + '-' + str(now.month)+ '-' + str(now.day)),
+                        help=('Ending date similar form'))
+    parser.add_argument('--instrument','-i', type=str, default='BTC-USD', help='Choose your instrument')
+    parser.add_argument('--seconds','-s', default=60*60*24, help='granularity in sec - default day candles')
+    return parser.parse_args()
+if __name__ == '__main__':
+    runprint()
 ts = pf.select_tradeperiod(ts, start, end, use_adj=True)
 ts.head()
 sma50 = SMA(ts, timeperiod=50)
