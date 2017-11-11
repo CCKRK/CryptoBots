@@ -11,6 +11,22 @@ from backtrader.analyzers import (SQN, AnnualReturn, TimeReturn, SharpeRatio,
 
 now = datetime.datetime.now()
 client = gdax.PublicClient()
+# hack you suck
+def five():
+    return '5min'
+def fifteen():
+    return '15min'
+def hour():
+    return 'hour'
+def day():
+    return 'day'
+def week():
+    return 'week'
+options = {300: five,
+           900: fifteen,
+           3600: hour,
+           86400: day,
+           2678400: week}
 
 
 def runprint():
@@ -19,13 +35,13 @@ def runprint():
     fromdate = str(args.fromdate)
     todate = str(args.todate)
     gran = int(args.seconds)
-    data0 = client.get_product_historic_rates('BTC-USD', start=fromdate, end=todate, granularity=gran)
+    candlesize = options[gran]
+    data0 = client.get_product_historic_rates(instrument, start=fromdate, end=todate, granularity=gran)
     # labels = ['Time','Low','High','Open','Close','Volume']
     frame = pd.DataFrame(data=data0, columns=['Time','Low','High','Open','Close','Volume'])
     frame['Time'] = pd.to_datetime(frame['Time'], unit='s')
     frame = frame.sort_values(by=['Time'])
-    # filename = args.instrument + '-' + frame['Time'][0]+'-'+frame['Time'][len(frame)-1]
-    filename = str(args.instrument) + '-' + str(args.fromdate)
+    filename = str(args.instrument) + '_' + str(args.fromdate)+'_'+candlesize()
     frame = frame.set_index('Time')
     frame.to_csv(filename +'.csv')
 
