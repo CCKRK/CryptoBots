@@ -1,0 +1,39 @@
+from __future__ import (absolute_import, division, print_function)
+import gdax
+import datetime
+import argparse
+import pandas as pd
+import backtrader as bt
+import backtrader.feeds as btfeeds
+import backtrader.indicators as btind
+from backtrader.analyzers import (SQN, AnnualReturn, TimeReturn, SharpeRatio,
+                                  TradeAnalyzer)
+now = datetime.datetime.now()
+
+public_client = gdax.PublicClient()
+
+def __init__(self):
+
+def runprint():
+    args = parse_args()
+data0 = public_client.get_product_historic_rates(args.instrument, start=args.fromdate, end=args.todate granularity=args.seconds)
+frame = pd.DataFrame(data=data0, columns=['Time','Low','High','Open','Close','Volume'])
+frame['Time'] = pd.to_datetime(frame['Time'], unit='s')
+frame = frame.sort_values(by=['Time'])
+filename = args.instrument + '-' + frame['Time'][0]+'-'+frame['Time'][len(frame)-1]
+frame = frame.set_index('Time')
+frame.to_csv(filename)
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description='Collect Sample Data')
+    parser.add_argument('--fromdate', '-f', required=False, default=None,
+                        help=("Starting date in YYYY-MM-DD"))
+    parser.add_argument('--todate', '-t', required=False, default=(now.year + '-' + now.month + '-' + now.day),
+                        help=('Ending date similar form'))
+    parser.add_argument('--instrument','-i', default='BTC-USD', help='Choose your instrument')
+    parser.add_argument('--seconds','-s', default=60*60*24, help='granularity in sec - default day candles')
+
+if __name__ == '__main__':
+    runprint()
