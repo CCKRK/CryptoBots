@@ -1,88 +1,179 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import gdax
+import datetime
 import argparse
-
+import pandas as pd
 import backtrader as bt
 import backtrader.feeds as btfeeds
+import backtrader.indicators as btind
+from backtrader.analyzers import (SQN, AnnualReturn, TimeReturn, SharpeRatio,
+                                  TradeAnalyzer)
+client = gdax.PublicClient()
+data0 = client.get_product_historic_rates('BTC-USD', start='2017-08-01', granularity=60*60*24)
+frame = pd.DataFrame(data=data0, columns=['Time','Low','High','Open','Close','Volume'])
+frame['Time'] = pd.to_datetime(frame['Time'], unit='s')
+frame = frame.sort_values(by=['Time'])
+frame = frame.set_index('Time')
 
-import pandas
+class TALibStrategy(bt.Strategy):
+    params = (('ind', 'sma'), ('doji', True),)
+
+    INDS = ['sma', 'ema', 'stoc', 'rsi', 'macd', 'bollinger', 'aroon',
+            'ultimate', 'trix', 'kama', 'adxr', 'dema', 'ppo', 'tema',
+            'roc', 'williamsr']
+
+    def __init__(self):
+        if self.p.doji:
+            bt.talib.CDLDOJI(self.data.open, self.data.high,
+                             self.data.low, self.data.close)
+
+        if self.p.ind == 'sma':
+            bt.talib.SMA(self.data.close, timeperiod=25, plotname='TA_SMA')
+            bt.indicators.SMA(self.data, period=25)
+        elif self.p.ind == 'ema':
+            bt.talib.EMA(timeperiod=25, plotname='TA_SMA')
+            bt.indicators.EMA(period=25)
+        elif self.p.ind == 'stoc':
+            bt.talib.STOCH(self.data.high, self.data.low, self.data.close,
+                           fastk_period=14, slowk_period=3, slowd_period=3,
+                           plotname='TA_STOCH')
+
+            bt.indicators.Stochastic(self.data)
+
+        elif self.p.ind == 'macd':
+            bt.talib.MACD(self.data, plotname='TA_MACD')
+            bt.indicators.MACD(self.data)
+            bt.indicators.MACDHisto(self.data)
+        elif self.p.ind == 'bollinger':
+            bt.talib.BBANDS(self.data, timeperiod=25,
+                            plotname='TA_BBANDS')
+            bt.indicators.BollingerBands(self.data, period=25)
+
+        elif self.p.ind == 'rsi':
+            bt.talib.RSI(self.data, plotname='TA_RSI')
+            bt.indicators.RSI(self.data)
+
+        elif self.p.ind == 'aroon':
+            bt.talib.AROON(self.data.high, self.data.low, plotname='TA_AROON')
+            bt.indicators.AroonIndicator(self.data)
+
+        elif self.p.ind == 'ultimate':
+            bt.talib.ULTOSC(self.data.high, self.data.low, self.data.close,
+                            plotname='TA_ULTOSC')
+            bt.indicators.UltimateOscillator(self.data)
+
+        elif self.p.ind == 'trix':
+            bt.talib.TRIX(self.data, timeperiod=25,  plotname='TA_TRIX')
+            bt.indicators.Trix(self.data, period=25)
+
+        elif self.p.ind == 'adxr':
+            bt.talib.ADXR(self.data.high, self.data.low, self.data.close,
+                          plotname='TA_ADXR')
+            bt.indicators.ADXR(self.data)
+
+        elif self.p.ind == 'kama':
+            bt.talib.KAMA(self.data, timeperiod=25, plotname='TA_KAMA')
+            bt.indicators.KAMA(self.data, period=25)
+
+        elif self.p.ind == 'dema':
+            bt.talib.DEMA(self.data, timeperiod=25, plotname='TA_DEMA')
+            bt.indicators.DEMA(self.data, period=25)
+
+        elif self.p.ind == 'ppo':
+            bt.talib.PPO(self.data, plotname='TA_PPO')
+            bt.indicators.PPO(self.data, _movav=bt.indicators.SMA)
+
+        elif self.p.ind == 'tema':
+            bt.talib.TEMA(self.data, timeperiod=25, plotname='TA_TEMA')
+            bt.indicators.TEMA(self.data, period=25)
+
+        elif self.p.ind == 'roc':
+            bt.talib.ROC(self.data, timeperiod=12, plotname='TA_ROC')
+            bt.talib.ROCP(self.data, timeperiod=12, plotname='TA_ROCP')
+            bt.talib.ROCR(self.data, timeperiod=12, plotname='TA_ROCR')
+            bt.talib.ROCR100(self.data, timeperiod=12, plotname='TA_ROCR100')
+            bt.indicators.ROC(self.data, period=12)
+            bt.indicators.Momentum(self.data, period=12)
+            bt.indicators.MomentumOscillator(self.data, period=12)
+
+        elif self.p.ind == 'williamsr':
+            bt.talib.WILLR(self.data.high, self.data.low, self.data.close,
+                           plotname='TA_WILLR')
+            bt.indicators.WilliamsR(self.data)
 
 
-class PandasDataOptix(btfeeds.PandasData):
+def runstrat(args=None):
+    args = parse_args(args)
 
-    lines = ('optix_close', 'optix_pess', 'optix_opt',)
-    params = (('optix_close', -1),
-              ('optix_pess', -1),
-              ('optix_opt', -1))
+    cerebro = bt.Cerebro()
 
-    datafields = btfeeds.PandasData.datafields + (
-        ['optix_close', 'optix_pess', 'optix_opt'])
+    dkwargs = dict()
+    if args.fromdate:
+        fromdate = datetime.datetime.strptime(args.fromdate, '%Y-%m-%d')
+        dkwargs['fromdate'] = fromdate
 
+    if args.todate:
+        todate = datetime.datetime.strptime(args.todate, '%Y-%m-%d')
+        dkwargs['todate'] = todate
 
-class StrategyOptix(bt.Strategy):
+    data0 = bt.feeds.PandasData(dataname=args.data0)
+    cerebro.adddata(data0)
 
-    def next(self):
-        print('%03d %f %f, %f' % (
-            len(self),
-            self.data.optix_close[0],
-            self.data.lines.optix_pess[0],
-            self.data.optix_opt[0],))
+    cerebro.addstrategy(TALibStrategy, ind=args.ind, doji=not args.no_doji)
 
+    cerebro.run(runcone=not args.use_next, stdstats=False)
+    if args.plot:
+        pkwargs = dict(style='candle')
+        if args.plot is not True:  # evals to True but is not True
+            npkwargs = eval('dict(' + args.plot + ')')  # args were passed
+            pkwargs.update(npkwargs)
 
-def runstrat():
-    args = parse_args()
-
-    # Create a cerebro entity
-    cerebro = bt.Cerebro(stdstats=False)
-
-    # Add a strategy
-    cerebro.addstrategy(StrategyOptix)
-
-    # Get a pandas dataframe
-    datapath = ('/Users/codykessler/Botpractice/SampleData/2006-day-001-optix.txt')
-
-    # Simulate the header row isn't there if noheaders requested
-    skiprows = 1 if args.noheaders else 0
-    header = None if args.noheaders else 0
-
-    dataframe = pandas.read_csv(datapath,
-                                skiprows=skiprows,
-                                header=header,
-                                parse_dates=True,
-                                index_col=0)
-
-    if not args.noprint:
-        print('--------------------------------------------------')
-        print(dataframe)
-        print('--------------------------------------------------')
-
-    # Pass it to the backtrader datafeed and add it to the cerebro
-    data = PandasDataOptix(dataname=dataframe)
-
-    cerebro.adddata(data)
-
-    # Run over everything
-    cerebro.run()
-
-    # Plot the result
-    if not args.noplot:
-        cerebro.plot(style='bar')
+        cerebro.plot(**pkwargs)
 
 
-def parse_args():
+def parse_args(pargs=None):
+
     parser = argparse.ArgumentParser(
-        description='Pandas test script')
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description='Sample for sizer')
 
-    parser.add_argument('--noheaders', action='store_true', default=False,
-                        required=False,
-                        help='Do not use header rows')
+    parser.add_argument('--data0', required=False,
+                        default=frame,
+                        help='Data to be read in')
 
-    parser.add_argument('--noprint', action='store_true', default=False,
-                        help='Print the dataframe')
+    parser.add_argument('--fromdate', required=False,
+                        default='2016-12-24',
+                        help='Starting date in YYYY-MM-DD format')
 
-    parser.add_argument('--noplot', action='store_true', default=False,
-                        help='Do not plot the chart')
+    parser.add_argument('--todate', required=False,
+                        default='2017-11-11',
+                        help='Ending date in YYYY-MM-DD format')
+
+    parser.add_argument('--ind', required=False, action='store',
+                        default=TALibStrategy.INDS[0],
+                        choices=TALibStrategy.INDS,
+                        help=('Which indicator pair to show together'))
+
+    parser.add_argument('--no-doji', required=False, action='store_true',
+                        help=('Remove Doji CandleStick pattern checker'))
+
+    parser.add_argument('--use-next', required=False, action='store_true',
+                        help=('Use next (step by step) '
+                              'instead of once (batch)'))
+
+    # Plot options
+    parser.add_argument('--plot', '-p', nargs='?', required=False,
+                        metavar='kwargs', const=True,
+                        help=('Plot the read data applying any kwargs passed\n'
+                              '\n'
+                              'For example (escape the quotes if needed):\n'
+                              '\n'
+                              '  --plot style="candle" (to plot candles)\n'))
+
+    if pargs is not None:
+        return parser.parse_args(pargs)
 
     return parser.parse_args()
 

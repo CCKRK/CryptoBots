@@ -147,8 +147,8 @@ class St(bt.Strategy):
 class SmaCross(bt.SignalStrategy):
     params = (('pfast', 15), ('pslow', 30))
     def __init__(self):
-        sma1, sma2 = bt.ind.SMA(period=self.p.pfast),
-        bt.ind.SMA(period=self.p.pslow)
+        sma1 = bt.ind.SMA(period=self.p.pfast),
+        sma2 = bt.ind.SMA(period=self.p.pslow)
         self.signal_add(bt.SIGNAL_LONG, bt.ind.CrossOver(sma1, sma2))
 
 
@@ -176,7 +176,7 @@ def runstrat():
     #                     compression=args.compression)
     cerebro.adddata(data)
     #cerebro.addstrategy(St)
-    #cerebro.addstrategy(SmaCross)
+    cerebro.addstrategy(SmaCross)
     cerebro.addstrategy(LongShortStrategy,
                         period=args.period,
                         csvcross=False,
