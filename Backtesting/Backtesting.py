@@ -16,6 +16,7 @@ frame = frame.sort_values(by=['Time'])
 frame = frame.set_index('Time')
 
 
+
 class LongShortStrategy(bt.Strategy):
     params = dict(
         period=15,
@@ -145,20 +146,117 @@ class St(bt.Strategy):
 
 
 class SmaCross(bt.SignalStrategy):
-    params = (('pfast', 15), ('pslow', 30))
-    def __init__(self):
-        sma1 = bt.ind.SMA(period=self.p.pfast),
-        sma2 = bt.ind.SMA(period=self.p.pslow)
-        self.signal_add(bt.SIGNAL_LONG, bt.ind.CrossOver(sma1, sma2))
+    params = dict(sma1=15, sma2=30)
 
+    def notify_order(self, order):
+        if not order.alive():
+            print('{} {} {}@{}'.format(
+                bt.num2date(order.executed.dt),
+                'buy' if order.isbuy() else 'sell',
+                order.executed.size,
+                order.executed.price)
+            )
+
+    def notify_trade(self, trade):
+        if trade.isclosed:
+            print('profit {}'.format(trade.pnlcomm))
+
+    def __init__(self):
+        sma1 = bt.ind.SMA(period=self.params.sma1)
+        sma2 = bt.ind.SMA(period=self.params.sma2)
+        crossover = bt.ind.CrossOver(sma1, sma2)
+        self.signal_add(bt.SIGNAL_LONG, crossover)
+
+
+class TALibStrategy(bt.Strategy):
+    params = (('ind', 'sma'), ('doji', True),)
+
+    INDS = ['sma', 'ema', 'stoc', 'rsi', 'macd', 'bollinger', 'aroon',
+            'ultimate', 'trix', 'kama', 'adxr', 'dema', 'ppo', 'tema',
+            'roc', 'williamsr']
+
+    def __init__(self):
+        '''if self.p.doji:
+            bt.talib.CDLDOJI(self.data.open, self.data.high,
+                             self.data.low, self.data.close)'''
+
+        if self.p.ind == 'sma':
+            bt.talib.SMA(self.data.close, timeperiod=25, plotname='TA_SMA')
+            bt.indicators.SMA(self.data, period=25)
+        elif self.p.ind == 'ema':
+            bt.talib.EMA(timeperiod=25, plotname='TA_SMA')
+            bt.indicators.EMA(period=25)
+        elif self.p.ind == 'stoc':
+            bt.talib.STOCH(self.data.high, self.data.low, self.data.close,
+                           fastk_period=14, slowk_period=3, slowd_period=3,
+                           plotname='TA_STOCH')
+
+            bt.indicators.Stochastic(self.data)
+
+        elif self.p.ind == 'macd':
+            bt.talib.MACD(self.data, plotname='TA_MACD')
+            bt.indicators.MACD(self.data)
+            bt.indicators.MACDHisto(self.data)
+        elif self.p.ind == 'bollinger':
+            bt.talib.BBANDS(self.data, timeperiod=25,
+                            plotname='TA_BBANDS')
+            bt.indicators.BollingerBands(self.data, period=25)
+
+        elif self.p.ind == 'rsi':
+            bt.talib.RSI(self.data, plotname='TA_RSI')
+            bt.indicators.RSI(self.data)
+
+        elif self.p.ind == 'aroon':
+            bt.talib.AROON(self.data.high, self.data.low, plotname='TA_AROON')
+            bt.indicators.AroonIndicator(self.data)
+
+        elif self.p.ind == 'ultimate':
+            bt.talib.ULTOSC(self.data.high, self.data.low, self.data.close,
+                            plotname='TA_ULTOSC')
+            bt.indicators.UltimateOscillator(self.data)
+
+        elif self.p.ind == 'trix':
+            bt.talib.TRIX(self.data, timeperiod=25,  plotname='TA_TRIX')
+            bt.indicators.Trix(self.data, period=25)
+
+        elif self.p.ind == 'adxr':
+            bt.talib.ADXR(self.data.high, self.data.low, self.data.close,
+                          plotname='TA_ADXR')
+            bt.indicators.ADXR(self.data)
+
+        elif self.p.ind == 'kama':
+            bt.talib.KAMA(self.data, timeperiod=25, plotname='TA_KAMA')
+            bt.indicators.KAMA(self.data, period=25)
+
+        elif self.p.ind == 'dema':
+            bt.talib.DEMA(self.data, timeperiod=25, plotname='TA_DEMA')
+            bt.indicators.DEMA(self.data, period=25)
+
+        elif self.p.ind == 'ppo':
+            bt.talib.PPO(self.data, plotname='TA_PPO')
+            bt.indicators.PPO(self.data, _movav=bt.indicators.SMA)
+
+        elif self.p.ind == 'tema':
+            bt.talib.TEMA(self.data, timeperiod=25, plotname='TA_TEMA')
+            bt.indicators.TEMA(self.data, period=25)
+
+        elif self.p.ind == 'roc':
+            bt.talib.ROC(self.data, timeperiod=12, plotname='TA_ROC')
+            bt.talib.ROCP(self.data, timeperiod=12, plotname='TA_ROCP')
+            bt.talib.ROCR(self.data, timeperiod=12, plotname='TA_ROCR')
+            bt.talib.ROCR100(self.data, timeperiod=12, plotname='TA_ROCR100')
+            bt.indicators.ROC(self.data, period=12)
+            bt.indicators.Momentum(self.data, period=12)
+            bt.indicators.MomentumOscillator(self.data, period=12)
+
+        elif self.p.ind == 'williamsr':
+            bt.talib.WILLR(self.data.high, self.data.low, self.data.close,
+                           plotname='TA_WILLR')
+            bt.indicators.WilliamsR(self.data)
 
 def runstrat():
     args = parse_args()
     cerebro = bt.Cerebro()
-    # can I add strategies like this...
-    #cerebro.addstrategy(St)
-    #cerebro.addstrategy(SmaCross)
-    # this is where I will grab dates from args.. need ors
     if args.fromdate is not None:
         fromdate = datetime.datetime.strptime(args.fromdate, '%Y-%m-%d')
         todate = datetime.datetime.strptime(args.todate, '%Y-%m-%d')
@@ -167,7 +265,7 @@ def runstrat():
         #todate = frame.index[len(frame)-1]
         fromdate = datetime.datetime(2016,12,14)
         todate = datetime.datetime(2017,11,11)
-    
+    # for pandas
     data = bt.feeds.PandasData(dataname=args.data, fromdate=fromdate,
                                todate=todate)
     # data resampling
@@ -176,11 +274,12 @@ def runstrat():
     #                     compression=args.compression)
     cerebro.adddata(data)
     #cerebro.addstrategy(St)
-    cerebro.addstrategy(SmaCross)
+    cerebro.addstrategy(SmaCross, **(eval('dict(' + args.strat + ')')))
     cerebro.addstrategy(LongShortStrategy,
                         period=args.period,
                         csvcross=False,
                         stake=args.stake)
+    #cerebro.addstrategy(TALibStrategy, ind=args.ind)
     # im adding observers here for plot, is it working
     cerebro.addobserver(bt.observers.BuySell)
     cerebro.addobserver(bt.observers.Value)
@@ -198,7 +297,7 @@ def runstrat():
     else:
         cerebro.addanalyzer(TimeReturn, timeframe=tframes[args.tframe])
         cerebro.addanalyzer(SharpeRatio, timeframe=tframes[args.tframe])
-    cerebro.addanalyzer(TradeAnalyzer)
+    ##cerebro.addanalyzer(TradeAnalyzer)
     cerebro.addwriter(bt.WriterFile, csv=args.writercsv, rounding=4)
     cerebro.run(stdstats=False)
     # if args.plot is not True:
@@ -211,10 +310,22 @@ def runstrat():
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description='BidAsk to OHLC')
-    parser.add_argument('--data', required=False, default=frame, help='Data file to be read in')
-    parser.add_argument('--compression', required=False, default=1, type=int,help='How much to compress the bars')
-    parser.add_argument('--plot', required=False, action='store_true', help='Plot the vars')
+        description='stratbot')
+    parser.add_argument('--ind', required=False, action='store',
+                        default=TALibStrategy.INDS[0],
+                        choices=TALibStrategy.INDS,
+                        help=('Which indicator pair to show together'))
+    parser.add_argument('--no-doji', required=False, action='store_true',
+                        help=('Remove Doji CandleStick pattern checker'))
+    parser.add_argument('--data', required=False, 
+                        default=frame, 
+                        help='Data file to be read in')
+    parser.add_argument('--strat', required=False, action='store', default='',
+                        help=('Arguments for the strategy'))
+    parser.add_argument('--compression', required=False, default=1, type=int,
+                        help='How much to compress the bars')
+    parser.add_argument('--plot', required=False, action='store_true', 
+                        help='Plot the vars')
     parser.add_argument('--period', default=15, type=int,
                         help='Period to apply to the SMA. Default 15')
  # return parser.parse_args()
@@ -225,7 +336,7 @@ def parse_args():
     parser.add_argument('--writercsv', '-wcsv', action='store_true',
                         help='Tell the writer to produce a csv stream')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--tframe', default='days', required=False,
+    group.add_argument('--tframe', default='years', required=False,
                        choices=['days', 'weeks', 'months', 'years'],
                        help='Timeframe for the port return/Sharpe calcs')
     group.add_argument('--legacyannual', action='store_true',

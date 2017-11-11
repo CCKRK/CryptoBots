@@ -1,3 +1,7 @@
+
+# Gathers samples from GDAX when you spec
+# -i inst -f start date -t end date -s candlesize in seconds
+# don't forget theres a "200 candle max..."
 from __future__ import (absolute_import, division, print_function)
 import gdax
 import datetime
