@@ -7,11 +7,6 @@ import gdax
 import datetime
 import argparse
 import pandas as pd
-import backtrader as bt
-import backtrader.feeds as btfeeds
-import backtrader.indicators as btind
-from backtrader.analyzers import (SQN, AnnualReturn, TimeReturn, SharpeRatio,
-                                  TradeAnalyzer)
 
 now = datetime.datetime.now()
 client = gdax.PublicClient()

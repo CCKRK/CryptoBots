@@ -1,3 +1,4 @@
+
 from __future__ import (absolute_import, division, print_function)
 from __future__ import unicode_literals
 
@@ -24,7 +25,6 @@ print((now - start).seconds / unit)
 print(now.isoformat())
 print(start.isoformat())
 product = "{}-{}".format("BTC", "USD")
-data0 = [['date','low','high','open','close','volume']]
 data0 = client.get_product_historic_rates(
                                     product,
                                     start=start.isoformat(),
@@ -127,11 +127,13 @@ stats = pf.stats(ts, tlog, dbal, start, end, capital)
 pf.print_full(stats)
 benchmark = pf.Benchmark('SPY', capital, start, end)
 benchmark.run()
+benchmark.tlog, benchmark.dbal = benchmark.get_logs()
 benchmark.stats = benchmark.stats()
 pf.print_full(benchmark.stats)
-pf.plot_equity_curve(dbal)
-pf.plot_trades(dbal)
-
+pf.plot_equity_curve(dbal, benchmark=benchmark.dbal)
+plt.show()
+pf.plot_trades(dbal, benchmark=benchmark.dbal)
+plt.show()
 metrics = ('annual_return_rate',
            'max_closed_out_drawdown',
            'drawdown_annualized_return',
@@ -142,6 +144,4 @@ metrics = ('annual_return_rate',
            'sortino_ratio',
            'monthly_std')
 df = pf.plot_bar_graph(stats, *metrics)
-plot.show()
-df
-plot.show()
+plt.show()
