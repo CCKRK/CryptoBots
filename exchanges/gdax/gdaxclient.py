@@ -1,20 +1,32 @@
+import datetime
+import pandas as pd
+from gdax import PublicClient, AuthenticatedClient
+from core.bots.enums import TradeMode
+from exchanges.base import Base
+from strategies.enums import TradeState
+from termcolor import colored
+from json import JSONDecodeError
+import time
+from core.bots.enums import BuySellMode
+import configargparse
+
 class GdaxClient(Base):
     """
     Gdax interface
     """
     arg_parser = configargparse.get_argument_parser()
-    arg_parser.add('--bittrex_api_key', help='GDAX API key')
-    arg_parser.add("--bittrex_secret", help='GDAX secret key')
-    arg_parser.add("--bittrex_txn_fee", help='GDAX txn. fee')
+    arg_parser.add('--gdax_api_key', help='GDAX API key')
+    arg_parser.add("--gdax_secret", help='GDAX secret key')
+    arg_parser.add("--gdax_txn_fee", help='GDAX txn. fee')
     open_orders = []
 
     def __init__(self):
         args = self.arg_parser.parse_known_args()[0]
-        super(BittrexClient, self).__init__()
-        api_key = args.bittrex_api_key
-        secret = args.bittrex_secret
-        self.transaction_fee = float(args.bittrex_txn_fee)
-        self.bittrex = Bittrex(api_key, secret)
+        super(GdaxClient, self).__init__()
+        api_key = args.gdax_api_key
+        secret = gdax_secret
+        self.transaction_fee = float(args.gdax_txn_fee)
+        self.gdax = gdax(api_key, secret)
         self.pair_delimiter = '-'
         self.verbosity = args.verbosity
 
@@ -22,7 +34,7 @@ class GdaxClient(Base):
         """
         Returns ticker pairs for all currencies
         """
-        markets = self.bittrex.get_market_summaries()
+        markets = self.gdax.get_products()
         if markets is None:
             print(colored('\n! Got empty markets', 'red'))
             return None
@@ -39,7 +51,7 @@ class GdaxClient(Base):
         """
         Returns candlestick chart data in pandas dataframe
         """
-        dict_data = self.get_candles(currency_pair, epoch_start, epoch_end, interval_in_sec)
+        dict_data = self.get_product_historic_rates(currency_pair, epoch_start, epoch_end, interval_in_sec)
         df = pd.DataFrame(dict_data)
         df['pair'] = currency_pair
         return df
@@ -50,12 +62,12 @@ class GdaxClient(Base):
         """
         currency_pair = currency_pair.replace('_', self.pair_delimiter)
         try:
-            res = self.bittrex.get_ticks(currency_pair, 'fiveMin')
+            res = self.gdax.get_ticks(currency_pair, 'fiveMin')
         except gaierror as e:
-            print(colored('\n! Got gaierror exception from Bittrex client. Details: ' + e, 'red'))
+            print(colored('\n! Got gaierror exception from gdaxclient. Details: ' + e, 'red'))
             return dict()
         except Exception as e:
-            print(colored('\n! Got exception from Bittrex client. Details: ' + e, 'red'))
+            print(colored('\n! Got exception from gdax client. Details: ' + e, 'red'))
             return dict()
 
         if res is None:
@@ -109,13 +121,13 @@ class GdaxClient(Base):
             item['date'] = ticker_epoch
             out_tickers.append(item)
         return out_tickers.copy()
-        # return self.bittrex.returnChartData(currency_pair, period, start, end)
+        # return self.gdax.returnChartData(currency_pair, period, start, end)
 
     def get_balances(self):
         """
         Return available account balances (function returns ONLY currencies > 0)
         """
-        resp = self.bittrex.get_balances()
+        resp = self.gdax.get_balances()
         balances = resp['result']
         pairs = dict()
         for item in balances:
@@ -152,8 +164,8 @@ class GdaxClient(Base):
         """
         market = symbol.replace('_', self.pair_delimiter)
 
-        ticker = self.bittrex.get_ticker(market)
-        history = self.bittrex.get_market_history(market, 100)['result']
+        ticker = self.gdax.get_ticker(market)
+        history = self.gdax.get_market_history(market, 100)['result']
         volume = self.get_volume_from_history(history, candle_size)
 
         df = pd.DataFrame.from_dict(ticker['result'], orient="index")
@@ -208,7 +220,7 @@ class GdaxClient(Base):
             # ** Buy Action **
             if action.action == TradeState.buy:
                 print(colored('setting buy order: ' + str(action.amount) + '' + market, 'green'))
-                ret = self.bittrex.buy_limit(market, action.amount, action.rate)
+                ret = self.gdax.buy_limit(market, action.amount, action.rate)
                 if not ret['success']:
                     print(colored('Error: ' + ret['message'] + '. Txn: buy-' + market, 'red'))
                     continue
@@ -221,7 +233,7 @@ class GdaxClient(Base):
             # ** Sell Action **
             elif action.action == TradeState.sell:
                 print(colored('setting sell order: ' + str(action.amount) + '' + market, 'yellow'))
-                ret = self.bittrex.sell_limit(market, action.amount, action.rate)
+                ret = self.gdax.sell_limit(market, action.amount, action.rate)
                 if not ret['success']:
                     print(colored('Error: ' + ret['message'] + '. Txn: sell-' + market, 'red'))
                     continue
@@ -236,10 +248,10 @@ class GdaxClient(Base):
         """
         Cancels order for given order number
         """
-        return self.bittrex.cancel(order_number)
+        return self.gdax.cancel(order_number)
 
     def return_open_orders(self, currency_pair=''):
         """
         Returns open orders
         """
-        return self.bittrex.get_open_orders(currency_pair)
+        return self.gdax.get_open_orders(currency_pair)

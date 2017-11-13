@@ -13,7 +13,7 @@ from core.wallet import Wallet
 
 class Engine:
     """
-    Main class for Simulation Engine (main class where all is happening
+    Main class for Simulation Engine
     """
 
     arg_parser = configargparse.get_argument_parser()
