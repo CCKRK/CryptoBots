@@ -18,7 +18,7 @@ def has_mandatory_fields(options):
 
 if __name__ == "__main__":
     arg_parser = configargparse.get_argument_parser()
-    arg_parser.add('-c', '--config', is_config_file=True, help='config file path', default='mosquito.ini')
+    arg_parser.add('-c', '--config', is_config_file=True, help='config file path', default='hedgebot.ini')
     arg_parser.add('--backtest', help='Simulate your strategy on history ticker data', action='store_true')
     arg_parser.add("--paper", help="Simulate your strategy on real ticker", action='store_true')
     arg_parser.add("--live", help="REAL trading mode", action='store_true')
